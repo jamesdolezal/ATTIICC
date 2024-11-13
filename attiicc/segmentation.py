@@ -283,6 +283,14 @@ class Well:
         y += self.centroid[1]
         cropped_image = extracted_image[y:y + h, x:x + w]
 
+        # Handle negative dimensions
+        if x < 0:
+            w += x
+            x = 0
+        if y < 0:
+            h += y
+            y = 0
+
         image = Image.fromarray(cropped_image)
 
         return image
@@ -866,7 +874,7 @@ class Segmentation:
 
     def find_wells(
         self,
-        min_area: int = 11100,
+        area_range: Tuple[int, int] = (10000, 20000),
         filter_distance: int = 10,
         roi_path: str = None,
         roi_archive: bool = True,
@@ -896,12 +904,14 @@ class Segmentation:
         """
         centroid_list = []
         regions = {}
+        min_area, max_area = area_range
 
         for seg, box in zip(self.segmentation, self.bbox):
             contours = self._get_contours(seg)
             for contour in contours:
                 # Only select contours that are the nanowells (some small contours from cells may be present)
-                if cv2.contourArea(contour) > min_area:
+                contour_area = cv2.contourArea(contour)
+                if (contour_area > min_area) and (contour_area < max_area):
                     # Calculate the centroid of the contour
                     M = cv2.moments(contour)
                     points = contour.squeeze()
